@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sprite Test</title>
+<style>
+    body { background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+    canvas { background: #222; border: 2px solid #555; }
+</style>
+</head>
+<body>
+
+<canvas id="spriteCanvas" width="800" height="800"></canvas>
+
+<script>
+const canvas = document.getElementById("spriteCanvas");
+const ctx = canvas.getContext("2d");
+
+const FRAME_COUNT = 5;
+const frames = [];
+
+for (let i = 1; i <= FRAME_COUNT; i++) {
+    const img = new Image();
+    img.src = `frame${i}.png`;
+    frames.push(img);
+}
+
+const BPM = 170;
+const TICKS_PER_BEAT = 10;
+const TICK_RATE = (BPM / 60) * TICKS_PER_BEAT;
+const HOLD_TICKS = 3.5;
+
+let audioContext = null;
+let audioBuffer = null;
+let audioStartTime = 0;
+
+let currentKey = null;
+
+window.addEventListener("keydown", (e) => {
+    currentKey = e.key.toUpperCase();
+});
+window.addEventListener("keyup", () => {
+    currentKey = null;
+});
+
+canvas.addEventListener("click", () => {
+    if (audioContext) return;
+
+    audioContext = new AudioContext();
+
+    fetch("song.mp3")
+        .then(r => r.arrayBuffer())
+        .then(buf => audioContext.decodeAudioData(buf))
+        .then(decoded => {
+            audioBuffer = decoded;
+            start();
+        });
+}, { once: true });
+
+function start() {
+    const src = audioContext.createBufferSource();
+    src.buffer = audioBuffer;
+    src.connect(audioContext.destination);
+    audioStartTime = audioContext.currentTime;
+    src.start();
+
+    setInterval(drawFrame, 1);
+}
+
+function drawFrame() {
+    if (!audioContext) return;
+
+    const t = audioContext.currentTime - audioStartTime;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const tick = Math.floor(t * TICK_RATE);
+    const animFrame = Math.floor(tick / HOLD_TICKS) % FRAME_COUNT;
+
+    const img = frames[animFrame];
+
+    ctx.drawImage(img, 0, 0, 400, 400);
+}
+</script>
+</body>
+</html>
